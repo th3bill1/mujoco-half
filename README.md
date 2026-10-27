@@ -1,8 +1,86 @@
-# MuJoCo HalfCheetah
+# MuJoCo HalfCheetah — Reinforcement Learning Project
 
-Checkpoint-1 foundations for Gymnasium `HalfCheetah-v5`. The official research
-question is not assigned yet. The green difficulty level leaves room for later
-ablations; SAC is planned for checkpoint 2 and PPO is optional.
+Semester project for the **Reinforcement Learning** course at Warsaw University of Technology (2026/27).
+
+**Status:** Checkpoint 1
+
+**Authors:** Aleksandra Wieczorek, Wojciech Wójcik
+
+## Project objective
+
+Train and evaluate an agent that learns to move a simulated planar cheetah forward efficiently by applying continuous torques to six joints. The primary environment is [Gymnasium's `HalfCheetah-v5`](https://gymnasium.farama.org/main/environments/mujoco/half_cheetah/), powered by MuJoCo.
+
+### Environment specification
+
+| Property | Default |
+| --- | --- |
+| Task | Maximize forward motion while limiting control effort |
+| Agents | One; no opponents or game modes |
+| Observation | 17 continuous values: 8 positions (`qpos`, excluding global x) and 9 velocities (`qvel`) |
+| Action | 6 continuous joint controls in `[-1, 1]`, for the back/front thigh, shin and foot |
+| Reward | `forward_reward_weight * forward_velocity - ctrl_cost_weight * sum(action ** 2)` |
+| Reward weights | Forward: `1.0`; control: `0.1` |
+| Initial-state noise | `reset_noise_scale=0.1` |
+| Episode limit | 1,000 environment steps (time-limit truncation); no built-in task termination |
+| Default time step | `frame_skip=5`, simulation time `0.01 s` per physics frame, or `0.05 s` per action |
+
+The default 17-dimensional observation is **not an image**. The absolute x-position is omitted to encourage position-independent control, but can be included (`exclude_current_positions_from_observation=False`, giving 18 dimensions). The environment returns useful diagnostics in `info`, such as `x_position`, `reward_forward` and `reward_ctrl`.
+
+### Configurable parameters
+
+- `forward_reward_weight`: how strongly forward speed is rewarded.
+- `ctrl_cost_weight`: penalty for large actions.
+- `reset_noise_scale`: variation in starting state.
+- `exclude_current_positions_from_observation`: include/exclude global x-position.
+- `frame_skip`: number of simulation frames per agent action.
+- `xml_file`: optional custom MuJoCo model; out of scope unless required by the research question.
+- Episode length via Gymnasium's `TimeLimit` wrapper; distinguish this from environment termination.
+
+## Planned repository structure
+
+```text
+halfcheetah-rl/
+├── README.md                       # Project overview and usage
+├── plan.md                         # Checklist and milestones
+├── pyproject.toml                  # Dependencies, scripts, tool config
+├── .gitignore
+├── configs/
+│   ├── environment.yaml            # Canonical HalfCheetah parameters
+│   ├── sac_baseline.yaml           # First trainable agent
+│   └── experiments/                # Controlled research variants
+├── src/
+│   ├── __init__.py
+│   ├── envs.py                     # Environment factory and wrappers
+│   ├── agents.py                   # Random and trained policy interfaces
+│   ├── train.py                    # Training entry point
+│   ├── evaluate.py                 # Deterministic evaluation
+│   ├── record.py                   # Video recording
+│   ├── metrics.py                  # Episode-level metrics
+│   └── utils.py                    # Seeds, paths, configuration
+├── scripts/
+│   ├── inspect_env.py              # Space/reward/termination sanity checks
+│   ├── run_random_agent.py         # Checkpoint 1 random-agent rollout
+│   ├── train_baseline.py           # Baseline training command
+│   ├── evaluate_models.py          # Batch evaluation
+│   └── make_plots.py               # Learning curves and comparisons
+├── tests/
+│   ├── test_env.py
+│   ├── test_metrics.py
+│   └── test_reproducibility.py
+├── presentations/
+│   ├── checkpoint_1/
+│   ├── checkpoint_2/
+│   └── final/
+├── artifacts/
+│   ├── videos/
+│   ├── models/
+│   ├── logs/
+│   ├── results/
+│   └── plots/
+└── docs/
+    ├── experiment_protocol.md
+    └── research_log.md
+```
 
 ## Install
 
@@ -16,8 +94,7 @@ dependencies. The checked environment uses Python 3.15.
 ## Inspect and run a random policy
 
 ```powershell
-python scripts\inspect_env.py --config configs\environment.yaml --seed 42
-python scripts\run_random_agent.py --config configs\environment.yaml --seed 42 --episodes 3 --record-video
+python scripts\run_random_agent.py --episodes 1 --clip-length 300 --fps 30 --record-video
 ```
 
 The inspection report is written to `artifacts/results/environment-inspection.json`.
@@ -35,32 +112,10 @@ video player.
 pytest -q
 ```
 
-## Environment defaults
+## References
 
-| Value | Default |
-|---|---:|
-| Environment | `HalfCheetah-v5` |
-| Forward reward weight | 1.0 |
-| Control cost weight | 0.1 |
-| Reset noise scale | 0.1 |
-| Exclude absolute x from observation | true |
-| Frame skip | 5 |
-| Action horizon | 1000 steps |
-| Physical timestep | 0.05 s per action |
+- [Gymnasium: HalfCheetah](https://gymnasium.farama.org/main/environments/mujoco/half_cheetah/)
+- [Gymnasium: MuJoCo environments](https://gymnasium.farama.org/main/environments/mujoco/)
+- [Stable-Baselines3 documentation](https://stable-baselines3.readthedocs.io/)
+- [Sutton and Barto, *Reinforcement Learning: An Introduction*](http://incompleteideas.net/book/the-book.html)
 
-The six controls are back/front thigh, shin and foot torques. The default
-observation has 8 relative `qpos` values plus 9 `qvel` values (17 values);
-actions have six values in `[-1, 1]`. The reward is
-
-`forward_reward_weight * (x_after - x_before) / dt - ctrl_cost_weight * sum(action ** 2)`.
-
-Displacement and forward velocity are physical movement measures. Mean
-action-squared is only a control-effort proxy, not measured physical energy.
-See the [official Gymnasium documentation](https://gymnasium.farama.org/main/environments/mujoco/half_cheetah/).
-
-## Troubleshooting
-
-Install `.[dev]` for the FFmpeg-backed video encoder. On headless systems,
-`rgb_array` rendering should work without a display; if MuJoCo or encoding is
-missing, the command reports the dependency error and video tests are skipped
-only when the encoder is unavailable.

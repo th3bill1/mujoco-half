@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mujoco-half"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["gymnasium[mujoco]>=1.0,<2.0", "numpy>=1.24,<3", "PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "imageio[ffmpeg]>=2.34,<3"]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
