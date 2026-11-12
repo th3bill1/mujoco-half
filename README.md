@@ -2,7 +2,7 @@
 
 Semester project for the **Reinforcement Learning** course at Warsaw University of Technology (2026/27).
 
-**Status:** Checkpoint 1
+**Status:** Checkpoint 2 implementation
 
 **Authors:** Aleksandra Wieczorek, Wojciech Wójcik
 
@@ -110,6 +110,41 @@ video player.
 
 ```powershell
 pytest -q
+```
+
+## Train and evaluate SAC
+
+Install the training extra once:
+
+```powershell
+py -m pip install -e ".[train,dev]"
+```
+
+Train a reproducible baseline run. Each run directory contains the final
+model, periodic checkpoints, TensorBoard events, configuration, and episode
+metrics:
+
+```powershell
+python scripts\train_baseline.py --env-config configs\environment.yaml --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42
+```
+
+Resume from any saved checkpoint:
+
+```powershell
+python scripts\train_baseline.py --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42-resumed --resume artifacts\runs\sac-seed42\checkpoints\model_10000.zip
+```
+
+Evaluate without exploration noise and write CSV/JSON results:
+
+```powershell
+python scripts\evaluate_models.py artifacts\runs\sac-seed42\model_final.zip --episodes 5 --seed 100 --output artifacts\results\sac-seed42-eval.csv
+```
+
+Combine repeated seed runs into a learning curve with mean +/- one standard
+deviation:
+
+```powershell
+python scripts\make_plots.py artifacts\runs\sac-seed1\training_metrics.csv artifacts\runs\sac-seed2\training_metrics.csv artifacts\runs\sac-seed3\training_metrics.csv --output artifacts\plots\sac-learning.png
 ```
 
 ## References

@@ -16,3 +16,5 @@ WARNING Tue Oct 27 17:39:53 2026: compiler attribute 'settotalmass' is deprecate
 
 WARNING Tue Oct 27 17:40:37 2026: compiler attribute 'settotalmass' is deprecated and will be removed in a future release: scale the masses and densities in the model, or call mj_setTotalmass and mj_setConst on the compiled model
 
+WARNING Thu Nov 12 10:46:49 2026: compiler attribute 'settotalmass' is deprecated and will be removed in a future release: scale the masses and densities in the model, or call mj_setTotalmass and mj_setConst on the compiled model
+

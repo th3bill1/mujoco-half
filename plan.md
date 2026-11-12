@@ -37,12 +37,12 @@ This is a living checklist.
 
 ## 2. Checkpoint 2 — 3 December 2026: working agent
 
-- [ ] Implement a configuration-driven environment factory and deterministic seeding.
-- [ ] Implement episode metrics and structured logging (CSV/TensorBoard; preserve all runs).
-- [ ] Implement training, checkpoint saving, resume and evaluation entry points.
+- [x] Implement a configuration-driven environment factory and deterministic seeding.
+- [x] Implement episode metrics and structured logging (CSV/TensorBoard; preserve all runs).
+- [x] Implement training, checkpoint saving, resume and evaluation entry points.
 - [ ] Train the first SAC policy; confirm it improves materially over the random baseline under matched conditions.
-- [ ] Separate training runs from evaluation runs; evaluate full episodes without training exploration noise.
-- [ ] Validate that model loading reproduces evaluation behavior.
+- [x] Separate training runs from evaluation runs; evaluate full episodes without training exploration noise.
+- [x] Validate that model loading reproduces evaluation behavior.
 - [ ] Run at least a small seed repeat (ideally 3) and plot learning curves with uncertainty.
 - [ ] Diagnose any instability, reward hacking, excessive action magnitudes or poor forward progress.
 - [ ] Produce a short demo of the trained agent and compare with random policy.
@@ -77,9 +77,9 @@ This is a living checklist.
 ### Testing and reproducibility
 
 - [ ] Unit-test action/observation assumptions, reward-component extraction and metric aggregation.
-- [ ] Smoke-test short training/evaluation loops and video recording.
+- [x] Smoke-test short training/evaluation loops and video recording.
 - [ ] Run an end-to-end test from config to model to evaluation CSV and plots.
-- [ ] Document exact reproducibility commands and dependencies.
+- [x] Document exact reproducibility commands and dependencies.
 - [ ] Ensure generated media, logs and heavy model weights are organized and not accidentally committed.
 
 ## 4. Final checkpoint — 21 January 2027
