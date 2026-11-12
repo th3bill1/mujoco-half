@@ -1,0 +1,181 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,polish]{babel}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\definecolor{navy}{HTML}{152A43}
+\definecolor{teal}{HTML}{007F86}
+\definecolor{light}{HTML}{EFF5F6}
+\setbeamercolor{normal text}{fg=navy,bg=white}
+\setbeamercolor{frametitle}{fg=navy,bg=white}
+\setbeamercolor{structure}{fg=teal}
+\setbeamercolor{block title}{fg=white,bg=teal}
+\setbeamercolor{block body}{fg=navy,bg=light}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{itemize items}[circle]
+\setbeamersize{text margin left=11mm,text margin right=11mm}
+
+\title{MuJoCo HalfCheetah}
+\subtitle{Uczenie ze wzmocnieniem \quad | \quad Pierwszy punkt kontrolny}
+\author{Aleksandra Wieczorek \and Wojciech W\'ojcik  }
+\institute{Politechnika Warszawska}
+\date{29 pa\'zdziernika 2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+  \vspace{-0.5em}
+  \begin{center}\small Temat zielony\end{center}
+\end{frame}
+
+\begin{frame}{Cel zadania}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.61\textwidth}
+      \begin{itemize}
+        \item Sterowanie dwuwymiarowym modelem geparda w symulatorze fizyki MuJoCo.
+        \item Agent wybiera momenty steruj\k{a}ce sze\'scioma stawami.
+        \item Zadanie: porusza\'c si\k{e} mo\.zliwie szybko w prawo, ograniczaj\k{a}c koszt sterowania.
+        \item Wariant: Gymnasium \texttt{HalfCheetah-v5}.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.35\textwidth}
+      \begin{block}{Charakter problemu}
+        1 agent\\[0.3em]
+        Ci\k{a}g\l e akcje\\[0.3em]
+        Symulacja fizyczna\\[0.3em]
+        Brak przeciwnik\'ow
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{P\k{e}tla interakcji ze \'srodowiskiem}
+  \centering
+  \begin{block}{Jeden krok symulacji}
+    \centering
+    Obserwacja $s_t$ $\longrightarrow$ polityka $\pi$ $\longrightarrow$ akcja $a_t$\\[0.6em]
+    \centering $\longrightarrow$ MuJoCo $\longrightarrow$ $s_{t+1}$ oraz $r_t$
+  \end{block}
+  \vspace{1em}
+  \begin{itemize}
+    \item Domy\'slny epizod: \textbf{1000 krok\'ow}; ograniczenie czasowe przerywa epizod.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Co obserwuje agent?}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.34\textwidth}
+      \begin{block}{Przestrze\'n obserwacji}
+        \centering $s_t\in\mathbb{R}^{17}$
+      \end{block}
+    \end{column}
+    \begin{column}{0.62\textwidth}
+        \begin{itemize}
+        \item 8 warto\'sci po\l o\.ze\'n i k\k{a}t\'ow (\texttt{qpos}).
+        \item 9 pr\k{e}dko\'sci (\texttt{qvel}).
+        \item Opcjonalnie dodatkowy parametr położenia x.
+        \item Obserwacja zawiera dane stanu fizycznego, a nie obraz z kamery.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Jakie akcje mo\.ze wykona\'c agent?}
+  \begin{block}{Ci\k{a}g\l a przestrze\'n sterowania}
+    \centering $a_t\in[-1,1]^6$
+  \end{block}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \textbf{Tylne ko\'nczyny}
+      \begin{enumerate}
+        \item Udo (\texttt{bthigh})
+        \item Podudzie (\texttt{bshin})
+        \item Stopa (\texttt{bfoot})
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Przednie ko\'nczyny}
+      \begin{enumerate}\setcounter{enumi}{3}
+        \item Udo (\texttt{fthigh})
+        \item Podudzie (\texttt{fshin})
+        \item Stopa (\texttt{ffoot})
+      \end{enumerate}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \small Ka\.zda sk\l adowa okre\'sla sterowanie momentem si\l y w stawie. Warto\'sci s\k{a} ograniczone do $[-1,1]$.
+\end{frame}
+
+\begin{frame}{Funkcja nagrody}
+  \begin{block}{Nagroda za pojedynczy krok}
+    \centering \Large $r_t = w_f\frac{x_{t+1}-x_t}{\Delta t}-w_c\lVert a_t\rVert_2^2$
+  \end{block}
+  \vspace{0.3em}
+  \begin{itemize}
+    \item $w_f=1$: dodatnia nagroda za pr\k{e}dko\'s\'c do przodu.
+    \item $w_c=0{,}1$: kara za du\.ze sygna\l y steruj\k{a}ce.
+    \item Domy\'slnie $\Delta t=5\cdot0{,}01=0{,}05$ s.
+    \item W eksperymentach rejestrujemy osobno oba sk\l adniki.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Mo\.zliwo\'sci konfiguracji}
+  \small
+  \begin{tabular}{@{}p{0.47\textwidth}p{0.18\textwidth}p{0.26\textwidth}@{}}
+    \toprule
+    Parametr & Domy\'slnie & Znaczenie\\
+    \midrule
+    \texttt{forward\_reward\_weight} & 1,0 & Waga pr\k{e}dko\'sci\\
+    \texttt{ctrl\_cost\_weight} & 0,1 & Kara za akcje\\
+    \texttt{reset\_noise\_scale} & 0,1 & Losowo\'s\'c startu\\
+    \texttt{frame\_skip} & 5 & Odst\k{e}p sterowania\\
+    \texttt{exclude\_current\_positions\_}\\\texttt{from\_observation} & true & Dost\k{e}p do pozycji $x$\\
+    \texttt{max\_episode\_steps} & 1000 & Limit epizodu\\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.6em}
+\end{frame}
+
+\begin{frame}{Punkt odniesienia i metryki}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Punkty odniesienia}
+        \begin{itemize}
+          \item Teraz: agent losowy.
+          \item Grudzie\'n: SAC jako podstawowy agent uczony.
+          \item Opcjonalnie: PPO.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{block}{Metryki ewaluacji}
+        \begin{itemize}
+          \item Zwrot z epizodu.
+          \item Pr\k{e}dko\'s\'c i przemieszczenie $x$.
+          \item $\frac{1}{T}\sum_t\lVert a_t\rVert_2^2$.
+          \item Zmienno\'s\'c wynik\'ow mi\k{e}dzy ziarnami.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.2em}
+  \small Dla zmienionej funkcji nagrody por\'ownujemy r\'ownie\.z metryki niezale\.zne od jej wag.
+\end{frame}
+
+\begin{frame}{Plan dalszych prac}
+  \begin{enumerate}
+    \setlength{\itemsep}{0.6em}
+    \item Trening SAC, odtwarzalne uruchomienia, wst\k{e}pne por\'ownanie z agentem losowym.
+    \item Eksperymenty kontrolowane, kilka wariant\'ow parametr\'ow i ziaren losowo\'sci.
+    \item Raport, analiza i prezentacja wynik\'ow.
+  \end{enumerate}
+\end{frame}
+
+\end{document}

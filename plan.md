@@ -30,8 +30,8 @@ This is a living checklist.
 - [x] Define intermediate goal: a trained policy clearly outperforming random on standard settings.
 - [x] Define final goal: reproducible trained policy and evidence-based answer to the research question; avoid promising an unverified return threshold.
 - [x] Define evaluation measures: return, forward speed, displacement, mean action-squared, reward components, episode length and across-seed variability.
-- [ ] Create a **Polish-language** checkpoint slide deck
-- [ ] Attend scheduled in-person consultation with the team; record feedback and revise the plan.
+- [x] Create a **Polish-language** checkpoint slide deck
+- [x] Attend scheduled in-person consultation with the team; record feedback and revise the plan.
 
 **Acceptance:** environment launches; random-agent video exists; slides accurately explain reward, observations and actions; research scope, baseline and metrics are explicit.
 
