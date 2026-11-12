@@ -26,14 +26,11 @@ This is a living checklist.
 
 ### Research and presentation
 
-- [ ] Confirm the course-assigned research question and difficulty color.
-- [ ] Write the provisional main hypothesis, experiment variables and controls.
 - [x] Choose a random-agent baseline and a trained SAC baseline; state whether PPO will be an optional comparison.
 - [x] Define intermediate goal: a trained policy clearly outperforming random on standard settings.
 - [x] Define final goal: reproducible trained policy and evidence-based answer to the research question; avoid promising an unverified return threshold.
 - [x] Define evaluation measures: return, forward speed, displacement, mean action-squared, reward components, episode length and across-seed variability.
-- [ ] Create a **Polish-language** checkpoint slide deck covering all four requested sections: environment/task; configuration; random-agent video; further work plan.
-- [ ] Rehearse the presentation and verify video works offline during the presentation.
+- [ ] Create a **Polish-language** checkpoint slide deck
 - [ ] Attend scheduled in-person consultation with the team; record feedback and revise the plan.
 
 **Acceptance:** environment launches; random-agent video exists; slides accurately explain reward, observations and actions; research scope, baseline and metrics are explicit.
