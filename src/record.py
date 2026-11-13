@@ -20,6 +20,82 @@ def _render_centered(env: Any) -> Any:
     return renderer.render("rgb_array")
 
 
+def record_sac(
+    config: EnvironmentConfig,
+    model_path: Path,
+    *,
+    seed: int,
+    episodes: int,
+    max_steps: int | None,
+    output_dir: Path,
+    fps: int,
+    clip_length: int | None = None,
+) -> list[Path]:
+    """Record deterministic episodes from a saved SAC policy."""
+    try:
+        from stable_baselines3 import SAC
+    except ImportError as exc:
+        raise RuntimeError(
+            "SAC visualization requires the train extra: "
+            'python -m pip install -e ".[train]"'
+        ) from exc
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    video_dir = output_dir.parent / "videos"
+    video_dir.mkdir(parents=True, exist_ok=True)
+    env = make_env(config, render_mode="rgb_array", seed=seed)
+    try:
+        import imageio.v2 as imageio
+    except ImportError as exc:
+        raise RuntimeError(
+            "Video recording requires the dev dependency imageio[ffmpeg]"
+        ) from exc
+
+    model = SAC.load(str(model_path), device="cpu")
+    video_paths: list[Path] = []
+    try:
+        for episode in range(1, episodes + 1):
+            obs, _ = env.reset(seed=seed + episode - 1)
+            env.action_space.seed(seed + episode - 1)
+            video_path = video_dir / (
+                f"sac-policy-seed{seed}-episode{episode}-"
+                f"{time.strftime('%Y%m%d-%H%M%S')}.mp4"
+            )
+            frame_count = 0
+            with imageio.get_writer(video_path, fps=fps) as writer:
+                writer.append_data(_render_centered(env))
+                frame_count += 1
+                terminated = truncated = False
+                limit = max_steps or config.episode_horizon
+                steps = 0
+                while steps < limit and not (terminated or truncated):
+                    action, _ = model.predict(obs, deterministic=True)
+                    obs, _, terminated, truncated, _ = env.step(action)
+                    writer.append_data(_render_centered(env))
+                    frame_count += 1
+                    steps += 1
+                    if clip_length is not None and steps >= clip_length:
+                        break
+            write_json(video_path.with_suffix(".json"), {
+                "policy": "SAC policy",
+                "model": str(model_path),
+                "seed": seed,
+                "environment": config.env_id,
+                "config": config.as_dict(),
+                "episode": episode,
+                "frame_count": frame_count,
+                "fps": fps,
+                "camera": "centered on the cheetah root x-position",
+                "environment_steps": steps,
+                "deterministic": True,
+                "generation_command": " ".join(__import__("sys").argv),
+            })
+            video_paths.append(video_path)
+    finally:
+        env.close()
+    return video_paths
+
+
 def run_random(
     config: EnvironmentConfig,
     *,

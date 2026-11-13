@@ -140,6 +140,16 @@ Evaluate without exploration noise and write CSV/JSON results:
 python scripts\evaluate_models.py artifacts\runs\sac-seed42\model_final.zip --episodes 5 --seed 100 --output artifacts\results\sac-seed42-eval.csv
 ```
 
+Record a deterministic trained-policy video. `--clip-length` is the number of
+environment steps, matching the random-policy command:
+
+```powershell
+python scripts\visualize_model.py artifacts\runs\sac-seed42\model_final.zip --episodes 1 --clip-length 300 --fps 30
+```
+
+Videos and sidecar metadata are written to `artifacts\videos\`. Use
+`--max-steps` to cap the episode independently when no clip length is given.
+
 Combine repeated seed runs into a learning curve with mean +/- one standard
 deviation:
 
@@ -153,4 +163,3 @@ python scripts\make_plots.py artifacts\runs\sac-seed1\training_metrics.csv artif
 - [Gymnasium: MuJoCo environments](https://gymnasium.farama.org/main/environments/mujoco/)
 - [Stable-Baselines3 documentation](https://stable-baselines3.readthedocs.io/)
 - [Sutton and Barto, *Reinforcement Learning: An Introduction*](http://incompleteideas.net/book/the-book.html)
-
