@@ -1,0 +1,221 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,polish]{babel}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\definecolor{navy}{HTML}{152A43}
+\definecolor{teal}{HTML}{007F86}
+\definecolor{light}{HTML}{EFF5F6}
+\setbeamercolor{normal text}{fg=navy,bg=white}
+\setbeamercolor{frametitle}{fg=navy,bg=white}
+\setbeamercolor{structure}{fg=teal}
+\setbeamercolor{block title}{fg=white,bg=teal}
+\setbeamercolor{block body}{fg=navy,bg=light}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{itemize items}[circle]
+\setbeamersize{text margin left=11mm,text margin right=11mm}
+
+\title{MuJoCo HalfCheetah}
+\subtitle{Uczenie ze wzmocnieniem \quad | \quad Drugi punkt kontrolny}
+\author{Aleksandra Wieczorek \and Wojciech Wójcik}
+\institute{Politechnika Warszawska}
+\date{19 listopada 2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+  \vspace{-0.5em}
+  \begin{center}\small Temat zielony\end{center}
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Co zrealizowaliśmy od ostatniego punktu kontrolnego}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Infrastruktura}
+        \begin{itemize}
+          \item Fabryka środowiska sterowana konfiguracją YAML.
+          \item Deterministyczne ziarno dla środowiska i przestrzeni akcji.
+          \item Metryki per-epizod: zwrot, prędkość, przemieszczenie, koszt sterowania.
+          \item Zapis CSV i TensorBoard; wznawianie treningu z checkpointu.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Trening i ewaluacja}
+        \begin{itemize}
+          \item Implementacja pętli treningowej SAC (Stable Baselines~3).
+          \item Trening ukończony: 100\,000 kroków, ziarno 42.
+          \item Checkpointy co 10\,000 kroków.
+          \item Deterministyczna ewaluacja (bez szumu eksploracji).
+          \item Nagranie wideo agenta SAC.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Algorytm SAC — dlaczego ten wybór?}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}
+        \item \textbf{Soft Actor-Critic (SAC)} — algorytm off-policy, maksymalizuje zwrot i entropię polityki.
+        \item Dobra stabilność w zadaniach z ciągłą przestrzenią akcji.
+        \item Efektywne próbkowanie dzięki buforowi powtórek doświadczeń.
+        \item Automatyczna regulacja współczynnika entropii (\texttt{ent\_coef=auto}).
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \begin{block}{Cel optymalizacji}
+        \centering
+        \vspace{0.3em}
+        $\pi^* = \arg\max_\pi \sum_t \mathbb{E}\bigl[r_t + \alpha\,\mathcal{H}(\pi(\cdot|s_t))\bigr]$
+        \vspace{0.3em}
+      \end{block}
+      \vspace{0.5em}
+      \small Parametr $\alpha$ balansuje eksplorację i eksploatację; wyznaczany automatycznie.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Parametry treningu}
+  \centering
+  \begin{tabular}{@{}lrl@{}}
+    \toprule
+    Parametr & Wartość & Znaczenie \\
+    \midrule
+    \texttt{total\_timesteps}  & 100\,000 & Łączna liczba kroków treningu \\
+    \texttt{learning\_starts}  & 10\,000  & Wypełnienie bufora przed uczeniem \\
+    \texttt{buffer\_size}      & 100\,000 & Rozmiar bufora powtórek \\
+    \texttt{batch\_size}       & 256      & Rozmiar mini-paczki \\
+    \texttt{learning\_rate}    & $3\times10^{-4}$ & Tempo uczenia (stałe) \\
+    \texttt{gamma}             & 0{,}99   & Współczynnik dyskontowania \\
+    \texttt{tau}               & 0{,}005  & Miękka aktualizacja sieci docelowej \\
+    \texttt{ent\_coef}         & auto     & Automatyczny współczynnik entropii \\
+    \texttt{checkpoint\_freq}  & 10\,000  & Częstotliwość zapisu modelu \\
+    \texttt{seed}              & 42       & Ziarno losowości \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Punkt odniesienia: agent losowy}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \small
+      \begin{tabular}{@{}lr@{}}
+        \toprule
+        Metryka & Wartość \\
+        \midrule
+        Zwrot z epizodu         & $-313{,}58$ \\
+        Suma nagrody naprzód    & $-114{,}09$ \\
+        Suma kosztu sterowania  & $+199{,}49$ \\
+        Przemieszczenie $x$     & $-5{,}70$ m \\
+        Śr.\ prędkość w przód   & $-0{,}11$ m/s \\
+        Śr.\ kwadrat akcji      & $0{,}33$ \\
+        Długość epizodu         & 1000 kroków \\
+        \bottomrule
+      \end{tabular}
+      \vspace{0.5em}
+
+      \small Ziarno 42, pełny epizod (1000 kroków, przerwany przez limit czasu).
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \begin{block}{Interpretacja}
+        \begin{itemize}
+          \item Agent porusza się \textbf{do tyłu} (ujemne przemieszczenie).
+          \item Wysoki koszt sterowania — chaotyczne, duże akcje.
+          \item Stanowi dolną granicę, którą SAC powinien wyraźnie pobić.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Agent SAC po 100\,000 kroków treningu}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Co zostało ukończone}
+        \begin{itemize}
+          \item Model końcowy: \texttt{model\_final.zip}
+          \item 10 checkpointów (co 10\,000 kroków)
+          \item Logi TensorBoard z krzywą uczenia
+          \item Nagranie wideo agenta SAC
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Obserwacje jakościowe}
+        \begin{itemize}
+          \item Agent SAC porusza się \textbf{w przód} — widoczna poprawa nad agentem losowym.
+          \item Ruch wyraźnie bardziej skoordynowany.
+          \item Trening stabilny — brak dywergencji.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.6em}
+  \begin{center}
+    \small
+    Trening zrealizowany na Windows 11 (AMD64), Python 3.12,\\
+    Gymnasium 1.4.0, MuJoCo 3.17.0, Stable Baselines3.
+  \end{center}
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Porównanie agentów — zestawienie}
+  \centering
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    Metryka & Agent losowy & Agent SAC \\
+    \midrule
+    Zwrot z epizodu              & $-313{,}6$  & $4747 \pm 128$ \\
+    Przemieszczenie $x$ [m]      & $-5{,}70$   & $259{,}3 \pm 6{,}2$ \\
+    Śr.\ prędkość w przód [m/s]  & $-0{,}11$   & $5{,}19 \pm 0{,}12$ \\
+    Suma kosztu sterowania        & $+199{,}5$  & $440{,}3 \pm 1{,}2$ \\
+    Śr.\ kwadrat akcji            & $0{,}33$    & $0{,}73$ \\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.5em}
+
+  \small Agent losowy: 1 epizod, ziarno 42. \quad Agent SAC: średnia $\pm$ odch.\ std.\ z 5 epizodów, deterministyczny.
+\end{frame}
+
+% ----------------------------------------------------------------
+\begin{frame}{Architektura kodu}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \textbf{Moduły źródłowe (\texttt{src/})}
+      \begin{itemize}
+        \item \texttt{envs.py} — fabryka środowiska + konfiguracja
+        \item \texttt{training.py} — pętla SAC, callback metryk, ewaluacja
+        \item \texttt{metrics.py} — agregacja wyników per-epizod
+        \item \texttt{agents.py} — polityka losowa
+        \item \texttt{record.py} — nagrywanie wideo
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Skrypty (\texttt{scripts/})}
+      \begin{itemize}
+        \item \texttt{train\_baseline.py} — uruchomienie treningu
+        \item \texttt{evaluate\_models.py} — ewaluacja zapisanego modelu
+        \item \texttt{compare\_agents.py} — porównanie agentów
+        \item \texttt{make\_plots.py} — wykresy krzywych uczenia
+        \item \texttt{visualize\_model.py} — nagranie wideo agenta
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+
+\end{document}
