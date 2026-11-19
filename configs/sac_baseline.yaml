@@ -9,4 +9,7 @@ gamma: 0.99
 tau: 0.005
 ent_coef: auto
 checkpoint_freq: 10000
-seed: 42
+seeds:
+  - 42
+  - 85
+  - 127

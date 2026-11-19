@@ -32,13 +32,7 @@ def record_sac(
     clip_length: int | None = None,
 ) -> list[Path]:
     """Record deterministic episodes from a saved SAC policy."""
-    try:
-        from stable_baselines3 import SAC
-    except ImportError as exc:
-        raise RuntimeError(
-            "SAC visualization requires the train extra: "
-            'python -m pip install -e ".[train]"'
-        ) from exc
+    from .sac import SACAgent
 
     output_dir.mkdir(parents=True, exist_ok=True)
     video_dir = output_dir.parent / "videos"
@@ -51,7 +45,7 @@ def record_sac(
             "Video recording requires the dev dependency imageio[ffmpeg]"
         ) from exc
 
-    model = SAC.load(str(model_path), device="cpu")
+    model = SACAgent.load(model_path, device="cpu")
     video_paths: list[Path] = []
     try:
         for episode in range(1, episodes + 1):
@@ -69,7 +63,7 @@ def record_sac(
                 limit = max_steps or config.episode_horizon
                 steps = 0
                 while steps < limit and not (terminated or truncated):
-                    action, _ = model.predict(obs, deterministic=True)
+                    action = model.predict(obs, deterministic=True)
                     obs, _, terminated, truncated, _ = env.step(action)
                     writer.append_data(_render_centered(env))
                     frame_count += 1

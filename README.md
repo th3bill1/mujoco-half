@@ -120,9 +120,9 @@ Install the training extra once:
 py -m pip install -e ".[train,dev]"
 ```
 
-Train a reproducible baseline run. Each run directory contains the final
-model, periodic checkpoints, TensorBoard events, configuration, and episode
-metrics:
+Train a reproducible baseline run using the repository-owned PyTorch SAC
+implementation. Each run directory contains the final model, periodic
+checkpoints, configuration, and episode metrics:
 
 ```powershell
 python scripts\train_baseline.py --env-config configs\environment.yaml --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42
@@ -157,9 +157,13 @@ deviation:
 python scripts\make_plots.py artifacts\runs\sac-seed1\training_metrics.csv artifacts\runs\sac-seed2\training_metrics.csv artifacts\runs\sac-seed3\training_metrics.csv --output artifacts\plots\sac-learning.png
 ```
 
+The SAC implementation is a repository-owned PyTorch implementation in
+`src/sac.py`; this project does not depend on Stable-Baselines3. It uses a
+Gaussian tanh-squashed actor, twin critics, a replay buffer, soft target
+updates and an optional automatically tuned entropy coefficient.
+
 ## References
 
 - [Gymnasium: HalfCheetah](https://gymnasium.farama.org/main/environments/mujoco/half_cheetah/)
 - [Gymnasium: MuJoCo environments](https://gymnasium.farama.org/main/environments/mujoco/)
-- [Stable-Baselines3 documentation](https://stable-baselines3.readthedocs.io/)
 - [Sutton and Barto, *Reinforcement Learning: An Introduction*](http://incompleteideas.net/book/the-book.html)

@@ -40,7 +40,8 @@ This is a living checklist.
 - [x] Implement a configuration-driven environment factory and deterministic seeding.
 - [x] Implement episode metrics and structured logging (CSV/TensorBoard; preserve all runs).
 - [x] Implement training, checkpoint saving, resume and evaluation entry points.
-- [ ] Train the first SAC policy; confirm it improves materially over the random baseline under matched conditions.
+- [x] Implement the SAC algorithm from scratch in PyTorch and train/evaluate it through project-owned entry points.
+- [ ] Confirm the trained SAC policy improves materially over the random baseline under matched conditions.
 - [x] Separate training runs from evaluation runs; evaluate full episodes without training exploration noise.
 - [x] Validate that model loading reproduces evaluation behavior.
 - [ ] Run at least a small seed repeat (ideally 3) and plot learning curves with uncertainty.

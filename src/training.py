@@ -13,6 +13,7 @@ import yaml
 
 from .envs import EnvironmentConfig, make_env
 from .metrics import aggregate_episode, reward_components
+from .sac import SACAgent
 from .utils import write_json
 
 
@@ -29,7 +30,8 @@ class SACConfig:
     tau: float = 0.005
     ent_coef: str = "auto"
     checkpoint_freq: int = 10_000
-    seed: int = 42
+    seeds: tuple[int, ...] = (42,)
+    seed: int | None = None
 
     def __post_init__(self) -> None:
         for name in ("total_timesteps", "learning_starts", "buffer_size", "batch_size",
@@ -40,6 +42,24 @@ class SACConfig:
             raise ValueError("gamma and tau must be in (0, 1]")
         if self.learning_rate <= 0:
             raise ValueError("learning_rate must be positive")
+        if isinstance(self.seeds, int):
+            seed_values = (self.seeds,)
+        elif isinstance(self.seeds, (list, tuple)):
+            seed_values = tuple(self.seeds)
+        else:
+            raise ValueError("seeds must be a list of integers")
+        if self.seed is not None:
+            if seed_values != (42,) or len(seed_values) != 1:
+                raise ValueError("Use either seed or seeds, not both")
+            seed_values = (int(self.seed),)
+        if not seed_values:
+            raise ValueError("seeds must contain at least one seed")
+        if any(not isinstance(seed, int) for seed in seed_values):
+            raise ValueError("seeds must contain only integers")
+        if len(set(seed_values)) != len(seed_values):
+            raise ValueError("seeds must not contain duplicates")
+        object.__setattr__(self, "seeds", seed_values)
+        object.__setattr__(self, "seed", seed_values[0])
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "SACConfig":
@@ -52,17 +72,6 @@ class SACConfig:
 
     def as_dict(self) -> dict[str, Any]:
         return {field.name: getattr(self, field.name) for field in fields(self)}
-
-
-def _require_sb3() -> tuple[Any, Any]:
-    try:
-        from stable_baselines3 import SAC
-        from stable_baselines3.common.callbacks import BaseCallback
-    except ImportError as exc:
-        raise RuntimeError(
-            "Training requires the train extra: python -m pip install -e \".[train]\""
-        ) from exc
-    return SAC, BaseCallback
 
 
 def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -83,75 +92,88 @@ def train_sac(
     resume: Path | None = None,
 ) -> Path:
     """Train SAC and save checkpoints plus per-episode structured metrics."""
-    SAC, BaseCallback = _require_sb3()
     run_dir.mkdir(parents=True, exist_ok=True)
     env = make_env(environment, seed=training.seed)
     metrics_rows: list[dict[str, Any]] = []
+    action_size = int(env.action_space.shape[0])
+    observation_size = int(env.observation_space.shape[0])
+    agent = (
+        SACAgent.load(resume, device="cpu")
+        if resume
+        else SACAgent(
+            observation_size,
+            action_size,
+            learning_rate=training.learning_rate,
+            gamma=training.gamma,
+            tau=training.tau,
+            buffer_size=training.buffer_size,
+            batch_size=training.batch_size,
+            learning_starts=training.learning_starts,
+            train_freq=training.train_freq,
+            gradient_steps=training.gradient_steps,
+            ent_coef=training.ent_coef,
+            seed=training.seed,
+            device="cpu",
+        )
+    )
 
-    class MetricsCallback(BaseCallback):
-        def __init__(self) -> None:
-            super().__init__()
-            self.episode = 0
-            self.rewards: list[float] = []
-            self.forwards: list[float] = []
-            self.costs: list[float] = []
-            self.velocities: list[float] = []
-            self.squared_actions: list[float] = []
-            self.initial_x = 0.0
+    observation, _ = env.reset(seed=training.seed)
+    initial_x = float(env.unwrapped.data.qpos[0])
+    episode = 0
+    rewards: list[float] = []
+    forwards: list[float] = []
+    costs: list[float] = []
+    velocities: list[float] = []
+    squared_actions: list[float] = []
+    start_timestep = agent.num_timesteps
 
-        def _on_training_start(self) -> None:
-            self.initial_x = float(self.training_env.envs[0].unwrapped.data.qpos[0])
-
-        def _on_step(self) -> bool:
-            info = self.locals["infos"][0]
-            reward = float(self.locals["rewards"][0])
-            action = np.asarray(self.locals["actions"][0])
-            forward, cost = reward_components(info, reward)
-            self.rewards.append(reward)
-            self.forwards.append(forward)
-            self.costs.append(cost)
-            self.velocities.append(float(info.get("x_velocity", 0.0)))
-            self.squared_actions.append(float(np.mean(action ** 2)))
-            if self.locals["dones"][0]:
-                final_x = float(info.get("x_position", self.initial_x))
-                truncated = bool(info.get("TimeLimit.truncated", False))
-                metrics = aggregate_episode(
-                    self.episode + 1, self.rewards, self.forwards, self.costs,
-                    self.velocities, self.squared_actions, self.initial_x, final_x,
-                    not truncated, truncated,
-                ).as_dict()
-                metrics["timesteps"] = self.num_timesteps
-                metrics_rows.append(metrics)
-                if self.num_timesteps % training.checkpoint_freq == 0:
-                    self.model.save(str(run_dir / "checkpoints" / f"model_{self.num_timesteps}"))
-                self.episode += 1
-                self.rewards.clear()
-                self.forwards.clear()
-                self.costs.clear()
-                self.velocities.clear()
-                self.squared_actions.clear()
-                self.initial_x = float(self.training_env.envs[0].unwrapped.data.qpos[0])
-            return True
-
-    callback = MetricsCallback()
-    model_kwargs = {
-        "learning_rate": training.learning_rate,
-        "buffer_size": training.buffer_size,
-        "learning_starts": training.learning_starts,
-        "batch_size": training.batch_size,
-        "train_freq": training.train_freq,
-        "gradient_steps": training.gradient_steps,
-        "gamma": training.gamma,
-        "tau": training.tau,
-        "ent_coef": training.ent_coef,
-        "seed": training.seed,
-        "verbose": 1,
-        "tensorboard_log": str(run_dir / "tensorboard"),
-    }
-    model = SAC.load(str(resume), env=env) if resume else SAC("MlpPolicy", env, **model_kwargs)
     try:
-        model.learn(total_timesteps=training.total_timesteps, callback=callback, reset_num_timesteps=resume is None)
-        model.save(str(run_dir / "model_final"))
+        while agent.num_timesteps - start_timestep < training.total_timesteps:
+            if agent.num_timesteps < training.learning_starts:
+                action = env.action_space.sample()
+            else:
+                action = agent.predict(observation, deterministic=False)
+            next_observation, reward, terminated, truncated, info = env.step(action)
+            forward, cost = reward_components(info, reward)
+            done = bool(terminated or truncated)
+            agent.add_transition(
+                observation, action, float(reward), next_observation, done
+            )
+            rewards.append(float(reward))
+            forwards.append(forward)
+            costs.append(cost)
+            velocities.append(float(info.get("x_velocity", 0.0)))
+            squared_actions.append(float(np.mean(np.asarray(action) ** 2)))
+            observation = next_observation
+
+            if agent.should_update():
+                for _ in range(agent.gradient_steps):
+                    agent.update()
+
+            if agent.num_timesteps % training.checkpoint_freq == 0:
+                checkpoint = run_dir / "checkpoints" / f"model_{agent.num_timesteps}"
+                agent.save(str(checkpoint.with_suffix(".zip")))
+
+            if done:
+                episode += 1
+                final_x = float(info.get("x_position", env.unwrapped.data.qpos[0]))
+                metrics = aggregate_episode(
+                    episode, rewards, forwards, costs, velocities, squared_actions,
+                    initial_x, final_x, terminated, truncated,
+                ).as_dict()
+                metrics["timesteps"] = agent.num_timesteps
+                metrics_rows.append(metrics)
+                observation, _ = env.reset(
+                    seed=training.seed + episode
+                )
+                env.action_space.seed(training.seed + episode)
+                initial_x = float(env.unwrapped.data.qpos[0])
+                rewards.clear()
+                forwards.clear()
+                costs.clear()
+                velocities.clear()
+                squared_actions.clear()
+        agent.save(str(run_dir / "model_final.zip"))
     finally:
         env.close()
     _write_rows(run_dir / "training_metrics.csv", metrics_rows)
@@ -173,8 +195,7 @@ def evaluate_sac(
     output_path: Path,
 ) -> list[dict[str, Any]]:
     """Evaluate a saved SAC policy without exploration noise."""
-    SAC, _ = _require_sb3()
-    model = SAC.load(str(model_path), device="cpu")
+    model = SACAgent.load(model_path, device="cpu")
     env = make_env(environment, seed=seed)
     rows: list[dict[str, Any]] = []
     try:
@@ -189,7 +210,7 @@ def evaluate_sac(
             squared_actions: list[float] = []
             terminated = truncated = False
             while not (terminated or truncated):
-                action, _ = model.predict(obs, deterministic=True)
+                action = model.predict(obs, deterministic=True)
                 obs, reward, terminated, truncated, info = env.step(action)
                 forward, cost = reward_components(info, reward)
                 rewards.append(float(reward))
