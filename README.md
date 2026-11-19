@@ -120,24 +120,30 @@ Install the training extra once:
 py -m pip install -e ".[train,dev]"
 ```
 
-Train a reproducible baseline run using the repository-owned PyTorch SAC
-implementation. Each run directory contains the final model, periodic
-checkpoints, configuration, and episode metrics:
+Train reproducible baseline runs for every seed in `sac_baseline.yaml`.
+The repository-owned PyTorch SAC implementation creates one directory per
+seed, with the final model, periodic checkpoints, configuration, and episode
+metrics:
 
 ```powershell
 python scripts\train_baseline.py --env-config configs\environment.yaml --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42
 ```
 
+The command creates `artifacts\runs\sac-seed42\seed-42`,
+`artifacts\runs\sac-seed42\seed-85`, and
+`artifacts\runs\sac-seed42\seed-127`.
+
 Resume from any saved checkpoint:
 
 ```powershell
-python scripts\train_baseline.py --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42-resumed --resume artifacts\runs\sac-seed42\checkpoints\model_10000.zip
+python scripts\train_baseline.py --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42-resumed --resume artifacts\runs\sac-seed42\seed-47\checkpoints\model_10000.zip
 ```
 
-Evaluate without exploration noise and write CSV/JSON results:
+Evaluate every trained seed without exploration noise. With no model
+arguments, the command reads the seed list and run directory:
 
 ```powershell
-python scripts\evaluate_models.py artifacts\runs\sac-seed42\model_final.zip --episodes 5 --seed 100 --output artifacts\results\sac-seed42-eval.csv
+python scripts\evaluate_models.py --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42 --episodes 5 --seed 100 --output artifacts\results\sac-seed42-eval
 ```
 
 Record a deterministic trained-policy video. `--clip-length` is the number of
@@ -150,11 +156,11 @@ python scripts\visualize_model.py artifacts\runs\sac-seed42\model_final.zip --ep
 Videos and sidecar metadata are written to `artifacts\videos\`. Use
 `--max-steps` to cap the episode independently when no clip length is given.
 
-Combine repeated seed runs into a learning curve with mean +/- one standard
-deviation:
+Combine every seed run listed in `sac_baseline.yaml` into a learning curve
+with mean +/- one standard deviation:
 
 ```powershell
-python scripts\make_plots.py artifacts\runs\sac-seed1\training_metrics.csv artifacts\runs\sac-seed2\training_metrics.csv artifacts\runs\sac-seed3\training_metrics.csv --output artifacts\plots\sac-learning.png
+python scripts\make_plots.py --config configs\sac_baseline.yaml --run-dir artifacts\runs\sac-seed42 --output artifacts\plots\sac-learning.png
 ```
 
 The SAC implementation is a repository-owned PyTorch implementation in

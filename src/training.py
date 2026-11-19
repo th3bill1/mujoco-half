@@ -49,8 +49,6 @@ class SACConfig:
         else:
             raise ValueError("seeds must be a list of integers")
         if self.seed is not None:
-            if seed_values != (42,) or len(seed_values) != 1:
-                raise ValueError("Use either seed or seeds, not both")
             seed_values = (int(self.seed),)
         if not seed_values:
             raise ValueError("seeds must contain at least one seed")

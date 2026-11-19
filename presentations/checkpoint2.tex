@@ -23,7 +23,7 @@
 
 \title{MuJoCo HalfCheetah}
 \subtitle{Uczenie ze wzmocnieniem \quad | \quad Drugi punkt kontrolny}
-\author{Aleksandra Wieczorek \and Wojciech Wójcik}
+\author{Aleksandra Wieczorek \and Wojciech W\'ojcik}
 \institute{Politechnika Warszawska}
 \date{19 listopada 2026}
 
@@ -35,187 +35,156 @@
   \begin{center}\small Temat zielony\end{center}
 \end{frame}
 
-% ----------------------------------------------------------------
-\begin{frame}{Co zrealizowaliśmy od ostatniego punktu kontrolnego}
+\begin{frame}{Co zrealizowaliśmy}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
-      \begin{block}{Infrastruktura}
+      \begin{block}{Własna implementacja SAC}
         \begin{itemize}
-          \item Fabryka środowiska sterowana konfiguracją YAML.
-          \item Deterministyczne ziarno dla środowiska i przestrzeni akcji.
-          \item Metryki per-epizod: zwrot, prędkość, przemieszczenie, koszt sterowania.
-          \item Zapis CSV i TensorBoard; wznawianie treningu z checkpointu.
+          \item Implementacja PyTorch w \texttt{src/sac.py}.
+          \item Polityka Gaussa z \texttt{tanh} squashing.
+          \item Twin critics i replay buffer.
+          \item Miękkie aktualizacje sieci docelowej.
+          \item Automatyczna entropia \texttt{ent\_coef=auto}.
         \end{itemize}
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{block}{Trening i ewaluacja}
+      \begin{block}{Gotowy potok eksperymentalny}
         \begin{itemize}
-          \item Implementacja pętli treningowej SAC (Stable Baselines~3).
-          \item Trening ukończony: 100\,000 kroków, ziarno 42.
-          \item Checkpointy co 10\,000 kroków.
-          \item Deterministyczna ewaluacja (bez szumu eksploracji).
-          \item Nagranie wideo agenta SAC.
+          \item Konfigurowalny trening, ewaluacja i zapis modeli.
+          \item Automatyczne katalogi dla każdego seeda.
+          \item Ewaluacja deterministyczna bez eksploracji.
+          \item Krzywa uczenia ze średnią i odchyleniem standardowym.
         \end{itemize}
       \end{block}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ----------------------------------------------------------------
-\begin{frame}{Algorytm SAC — dlaczego ten wybór?}
+\begin{frame}{Własna implementacja SAC}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.55\textwidth}
       \begin{itemize}
-        \item \textbf{Soft Actor-Critic (SAC)} — algorytm off-policy, maksymalizuje zwrot i entropię polityki.
-        \item Dobra stabilność w zadaniach z ciągłą przestrzenią akcji.
-        \item Efektywne próbkowanie dzięki buforowi powtórek doświadczeń.
-        \item Automatyczna regulacja współczynnika entropii (\texttt{ent\_coef=auto}).
+        \item \textbf{Actor}: sieć $17 \rightarrow 256 \rightarrow 256 \rightarrow 6$.
+        \item \textbf{Critics}: dwa modelowane estymatory $Q(s,a)$.
+        \item Akcje są ograniczane do przedziału $[-1,1]$ przez \texttt{tanh}.
+        \item Próbki trenowane są pobierane z bufora doświadczeń.
+        \item Model zapisuje i odczytuje własny format \texttt{mujoco-half-sac-v1}.
       \end{itemize}
     \end{column}
     \begin{column}{0.41\textwidth}
-      \begin{block}{Cel optymalizacji}
+      \begin{block}{Cel SAC}
         \centering
         \vspace{0.3em}
-        $\pi^* = \arg\max_\pi \sum_t \mathbb{E}\bigl[r_t + \alpha\,\mathcal{H}(\pi(\cdot|s_t))\bigr]$
+        $\pi^*=\arg\max_\pi
+        \sum_t \mathbb{E}\left[r_t+\alpha\,\mathcal{H}(\pi(\cdot|s_t))\right]$
         \vspace{0.3em}
       \end{block}
       \vspace{0.5em}
-      \small Parametr $\alpha$ balansuje eksplorację i eksploatację; wyznaczany automatycznie.
+      \small Entropia zachęca do eksploracji, a uczenie off-policy
+      ponownie wykorzystuje doświadczenia z replay buffer.
     \end{column}
   \end{columns}
 \end{frame}
 
-% ----------------------------------------------------------------
-\begin{frame}{Parametry treningu}
+\begin{frame}{Konfiguracja}
   \centering
-  \begin{tabular}{@{}lrl@{}}
+  \begin{tabular}{@{}lrp{0.42\textwidth}@{}}
     \toprule
     Parametr & Wartość & Znaczenie \\
     \midrule
-    \texttt{total\_timesteps}  & 100\,000 & Łączna liczba kroków treningu \\
-    \texttt{learning\_starts}  & 10\,000  & Wypełnienie bufora przed uczeniem \\
-    \texttt{buffer\_size}      & 100\,000 & Rozmiar bufora powtórek \\
-    \texttt{batch\_size}       & 256      & Rozmiar mini-paczki \\
-    \texttt{learning\_rate}    & $3\times10^{-4}$ & Tempo uczenia (stałe) \\
-    \texttt{gamma}             & 0{,}99   & Współczynnik dyskontowania \\
-    \texttt{tau}               & 0{,}005  & Miękka aktualizacja sieci docelowej \\
-    \texttt{ent\_coef}         & auto     & Automatyczny współczynnik entropii \\
-    \texttt{checkpoint\_freq}  & 10\,000  & Częstotliwość zapisu modelu \\
-    \texttt{seed}              & 42       & Ziarno losowości \\
+    \texttt{total\_timesteps} & 100\,000 & Budżet kroki treningu \\
+    \texttt{learning\_starts} & 10\,000 & Początek aktualizacji sieci \\
+    \texttt{buffer\_size} & 100\,000 & Rozmiar replay buffer \\
+    \texttt{batch\_size} & 256 & Rozmiar mini-paczki \\
+    \texttt{learning\_rate} & $3\times10^{-4}$ & Tempo uczenia \\
+    \texttt{gamma} & 0{,}99 & Dyskontowanie nagród \\
+    \texttt{tau} & 0{,}005 & Miękka aktualizacja target networks \\
+    \texttt{seeds} & 47, 69, 123 & Powtórzenia eksperymentu \\
     \bottomrule
   \end{tabular}
+  \vspace{0.7em}
+
 \end{frame}
 
-% ----------------------------------------------------------------
-\begin{frame}{Punkt odniesienia: agent losowy}
+\begin{frame}{Metodologia ewaluacji}
   \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.55\textwidth}
-      \small
-      \begin{tabular}{@{}lr@{}}
-        \toprule
-        Metryka & Wartość \\
-        \midrule
-        Zwrot z epizodu         & $-313{,}58$ \\
-        Suma nagrody naprzód    & $-114{,}09$ \\
-        Suma kosztu sterowania  & $+199{,}49$ \\
-        Przemieszczenie $x$     & $-5{,}70$ m \\
-        Śr.\ prędkość w przód   & $-0{,}11$ m/s \\
-        Śr.\ kwadrat akcji      & $0{,}33$ \\
-        Długość epizodu         & 1000 kroków \\
-        \bottomrule
-      \end{tabular}
-      \vspace{0.5em}
-
-      \small Ziarno 42, pełny epizod (1000 kroków, przerwany przez limit czasu).
-    \end{column}
-    \begin{column}{0.41\textwidth}
-      \begin{block}{Interpretacja}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Tryb ewaluacji}
         \begin{itemize}
-          \item Agent porusza się \textbf{do tyłu} (ujemne przemieszczenie).
-          \item Wysoki koszt sterowania — chaotyczne, duże akcje.
-          \item Stanowi dolną granicę, którą SAC powinien wyraźnie pobić.
+          \item \texttt{predict(..., deterministic=True)},
+          \item brak eksploracji i bez dalszego uczenia,
+          \item pełne epizody,
+          \item osobny seed początkowy ewaluacji,
+          \item osobne pliki dla każdego modelu.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Wybierane metryki}
+        \begin{itemize}
+          \item zwrot z epizodu,
+          \item nagroda naprzód i koszt sterowania,
+          \item prędkość i przemieszczenie w osi $x$,
+          \item średni kwadrat działania,
+          \item długość epizodu,
+          \item zakończenie i limit czasu.
         \end{itemize}
       \end{block}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ----------------------------------------------------------------
-\begin{frame}{Agent SAC po 100\,000 kroków treningu}
+\begin{frame}{Krzywe uczenia i wykresy}
+  \begin{itemize}
+    \item Skrypt \texttt{make\_plots.py} pobiera pliki
+    \texttt{training\_metrics.csv} dla wszystkich seedów z konfiguracji.
+    \item Wyniki są grupowane według numeru epizodu.
+    \item Wykres pokazuje średnią zwrotu pomiędzy seedami.
+    \item Pasmo wokół krzywej przedstawia odchylenie standardowe.
+    \item Wykres można zapisać jako PNG do katalogu \texttt{artifacts/plots/}.
+  \end{itemize}
+
+  \vspace{0.7em}
+  \begin{block}{Cel analizy}
+    Ocenienie trendu uczenia oraz zmienności pomiędzy różnymi powtórzeniami,
+    bez testowania osobnych konfiguracji jako jednego przebiegu.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Sprawdzenie implementacji}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
-      \begin{block}{Co zostało ukończone}
+      \begin{block}{Testy}
         \begin{itemize}
-          \item Model końcowy: \texttt{model\_final.zip}
-          \item 10 checkpointów (co 10\,000 kroków)
-          \item Logi TensorBoard z krzywą uczenia
-          \item Nagranie wideo agenta SAC
+          \item 7 testów jednostkowych i integracyjnych przechodzi.
+          \item Testy środowiska i metryk.
+          \item Test zapisu i odczytu własnego modelu SAC.
+          \item Test próbkowania i aktualizacji sieci.
         \end{itemize}
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{block}{Obserwacje jakościowe}
+      \begin{block}{Weryfikacja end-to-end}
         \begin{itemize}
-          \item Agent SAC porusza się \textbf{w przód} — widoczna poprawa nad agentem losowym.
-          \item Ruch wyraźnie bardziej skoordynowany.
-          \item Trening stabilny — brak dywergencji.
+          \item Krótkie treningi dla trzech seedów uruchomiły się poprawnie.
+          \item Ewaluacja załadowała i uruchomiła model każdego seeda.
+          \item Został wygenerowany i zapisany wykres krzywych.
         \end{itemize}
       \end{block}
     \end{column}
   \end{columns}
-  \vspace{0.6em}
-  \begin{center}
-    \small
-    Trening zrealizowany na Windows 11 (AMD64), Python 3.12,\\
-    Gymnasium 1.4.0, MuJoCo 3.17.0, Stable Baselines3.
-  \end{center}
 \end{frame}
 
-% ----------------------------------------------------------------
-\begin{frame}{Porównanie agentów — zestawienie}
-  \centering
-  \begin{tabular}{@{}lcc@{}}
-    \toprule
-    Metryka & Agent losowy & Agent SAC \\
-    \midrule
-    Zwrot z epizodu              & $-313{,}6$  & $4747 \pm 128$ \\
-    Przemieszczenie $x$ [m]      & $-5{,}70$   & $259{,}3 \pm 6{,}2$ \\
-    Śr.\ prędkość w przód [m/s]  & $-0{,}11$   & $5{,}19 \pm 0{,}12$ \\
-    Suma kosztu sterowania        & $+199{,}5$  & $440{,}3 \pm 1{,}2$ \\
-    Śr.\ kwadrat akcji            & $0{,}33$    & $0{,}73$ \\
-    \bottomrule
-  \end{tabular}
-  \vspace{0.5em}
-
-  \small Agent losowy: 1 epizod, ziarno 42. \quad Agent SAC: średnia $\pm$ odch.\ std.\ z 5 epizodów, deterministyczny.
+\begin{frame}{Podsumowanie punktu kontrolnego}
+  \begin{enumerate}
+    \setlength{\itemsep}{0.7em}
+    \item Zaimplementowano własnego SAC w PyTorch i zastąpiono nim bibliotekę zewnętrzną.
+    \item Uporządkowano trening, ewaluację, checkpointy i metryki.
+    \item Dodano konfigurację listy seedów i osobne katalogi dla każdego powtórzenia.
+    \item Przygotowano deterministyczną metodologię ewaluacji i zestaw metryk.
+    \item Dodano generowanie krzywych uczenia oraz wizualizację polityki.
+  \end{enumerate}
 \end{frame}
-
-% ----------------------------------------------------------------
-\begin{frame}{Architektura kodu}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.48\textwidth}
-      \textbf{Moduły źródłowe (\texttt{src/})}
-      \begin{itemize}
-        \item \texttt{envs.py} — fabryka środowiska + konfiguracja
-        \item \texttt{training.py} — pętla SAC, callback metryk, ewaluacja
-        \item \texttt{metrics.py} — agregacja wyników per-epizod
-        \item \texttt{agents.py} — polityka losowa
-        \item \texttt{record.py} — nagrywanie wideo
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \textbf{Skrypty (\texttt{scripts/})}
-      \begin{itemize}
-        \item \texttt{train\_baseline.py} — uruchomienie treningu
-        \item \texttt{evaluate\_models.py} — ewaluacja zapisanego modelu
-        \item \texttt{compare\_agents.py} — porównanie agentów
-        \item \texttt{make\_plots.py} — wykresy krzywych uczenia
-        \item \texttt{visualize\_model.py} — nagranie wideo agenta
-      \end{itemize}
-    \end{column}
-  \end{columns}
-\end{frame}
-
 
 \end{document}

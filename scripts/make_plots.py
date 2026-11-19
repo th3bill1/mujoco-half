@@ -7,15 +7,29 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.training import SACConfig
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("inputs", nargs="+", type=Path)
+    parser.add_argument("inputs", nargs="*", type=Path)
+    parser.add_argument("--config", type=Path, default=Path("configs/sac_baseline.yaml"))
+    parser.add_argument("--run-dir", type=Path, default=Path("artifacts/runs/sac-baseline"))
     parser.add_argument("--label", default="SAC")
     parser.add_argument("--output", type=Path, default=Path("artifacts/plots/learning-curves.png"))
     args = parser.parse_args()
+    if args.inputs:
+        inputs = args.inputs
+    else:
+        training = SACConfig.from_yaml(args.config)
+        inputs = [
+            args.run_dir / f"seed-{seed}" / "training_metrics.csv"
+            for seed in training.seeds
+        ]
     grouped_by_run: list[dict[int, float]] = []
-    for path in args.inputs:
+    for path in inputs:
+        if not path.exists():
+            raise FileNotFoundError(f"Training metrics not found: {path}")
         with path.open(newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
         grouped: dict[int, float] = {}

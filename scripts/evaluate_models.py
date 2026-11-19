@@ -21,8 +21,16 @@ def main() -> None:
     training = SACConfig.from_yaml(args.config)
 
     if args.models:
-        evaluations = [(training.seed if training.seed is not None else args.seed, model)
-                       for model in args.models]
+        evaluations = []
+        for model in args.models:
+            seed = args.seed
+            parent_name = model.parent.name
+            if parent_name.startswith("seed-"):
+                try:
+                    seed = int(parent_name.removeprefix("seed-"))
+                except ValueError:
+                    pass
+            evaluations.append((seed, model))
     else:
         evaluations = [
             (seed, args.run_dir / f"seed-{seed}" / "model_final.zip")

@@ -9,6 +9,15 @@ def test_sac_config_loads_and_rejects_unknown_keys(tmp_path):
     config = SACConfig.from_yaml(config_path)
     assert config.total_timesteps == 20
     assert config.seed == 7
+    assert config.seeds == (7,)
+
+    config_path.write_text(
+        "total_timesteps: 20\nseeds: [42, 85, 127]\n",
+        encoding="utf-8",
+    )
+    config = SACConfig.from_yaml(config_path)
+    assert config.seeds == (42, 85, 127)
+    assert config.seed == 42
 
     config_path.write_text("unexpected: true\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Unknown SAC configuration keys"):

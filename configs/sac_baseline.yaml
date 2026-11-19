@@ -10,6 +10,6 @@ tau: 0.005
 ent_coef: auto
 checkpoint_freq: 10000
 seeds:
-  - 42
-  - 85
-  - 127
+  - 47
+  - 69
+  - 123
